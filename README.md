@@ -99,3 +99,4 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
         backoofice
         sajnaeva
         barcoded 2
+        nent
