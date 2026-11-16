@@ -268,7 +268,7 @@ const ChatBot = () => {
     }
   };
 
-  if (!enabled) return null;
+  if (!enabled || location.pathname === "/admin" || location.pathname.startsWith("/admin/")) return null;
 
   // Hide the floating bubble while auth is still loading to avoid a flash
   if (authLoading) return null;
