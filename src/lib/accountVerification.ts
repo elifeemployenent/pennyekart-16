@@ -1,7 +1,7 @@
 // Client-side rules for the WhatsApp verification link option (mirrors
 // supabase/functions/_shared/verificationLink.ts; the server re-checks
 // everything, so this is presentation-only).
-export const VERIFICATION_LINK_ROLES = ["super admin", "team leader", "coordinator", "group leader"] as const;
+export const VERIFICATION_LINK_ROLES = ["super admin", "team leader", "coordinator", "group leader", "pro"] as const;
 
 export const VERIFICATION_LINK_TTL_LABEL = "24 hours";
 
@@ -33,6 +33,11 @@ export const normalizeVerificationMobile = (v: string | null | undefined): strin
 
 export const buildVerificationLink = (origin: string, token: string): string =>
   `${origin.replace(/\/+$/, "")}/customer/verify?token=${encodeURIComponent(token)}`;
+
+export const PLAY_STORE_APP_URL = "https://play.google.com/store/apps/details?id=com.pennyekart.app";
+
+export const playStoreInviteMessage = (): string =>
+  `Welcome to Pennyekart!\n\nDownload our app from the Google Play Store to create your account and get started:\n${PLAY_STORE_APP_URL}`;
 
 export const verificationWhatsAppMessage = (link: string): string =>
   `Pennyekart account verification\n\nTap this link to verify your account automatically:\n${link}\n\nValid for 24 hours. Do not share this link.`;
