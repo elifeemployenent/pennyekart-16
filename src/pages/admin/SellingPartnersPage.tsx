@@ -84,6 +84,7 @@ const SellingPartnersPage = () => {
   const [status, setStatus] = useState("all");
   const [body, setBody] = useState("all");
   const [ward, setWard] = useState("all");
+  const [countRange, setCountRange] = useState("all");
   const [page, setPage] = useState(1);
   const [loadError, setLoadError] = useState(false);
   const [coverage, setCoverage] = useState<{ seller_user_id: string; local_body_id: string; ward_number: number | null }[]>([]);
@@ -289,7 +290,7 @@ const SellingPartnersPage = () => {
     openWallet(walletPartner);
   };
 
-  useEffect(() => { setPage(1); }, [search, section, status, body, ward]);
+  useEffect(() => { setPage(1); }, [search, section, status, body, ward, countRange]);
   const sectionPartners = partners.filter(p => section === "utility" ? p.seller_type === "utility" : p.seller_type !== "utility");
   const bodyOptions = Array.from(new Map(partners.filter(p => p.local_body_id).map(p => [p.local_body_id, p.local_body_name || "Unknown local body"])).entries());
   const wardOptions = Array.from(new Set([...partners.filter(p => p.local_body_id === body).map(p => p.ward_number), ...coverage.filter(a => a.local_body_id === body).map(a => a.ward_number)].filter((w): w is number => w != null))).sort((a,b) => a-b);
@@ -302,12 +303,22 @@ const SellingPartnersPage = () => {
     const areas = coverage.filter(a => a.seller_user_id === p.user_id);
     if (body !== "all" && p.local_body_id !== body && !areas.some(a => a.local_body_id === body)) return false;
     if (ward !== "all" && !(p.local_body_id === body && p.ward_number === Number(ward)) && !areas.some(a => a.local_body_id === body && (a.ward_number == null || a.ward_number === Number(ward)))) return false;
+    const c = (section === "utility" ? p.service_count : p.product_count) ?? 0;
+    if (countRange === "none" && c !== 0) return false;
+    if (countRange === "any" && c < 1) return false;
+    if (countRange === "1-5" && (c < 1 || c > 5)) return false;
+    if (countRange === "6-20" && (c < 6 || c > 20)) return false;
+    if (countRange === "20+" && c <= 20) return false;
     return true;
   });
+  if (countRange === "high" || countRange === "low") {
+    const k = (p: SellingPartner) => (section === "utility" ? p.service_count : p.product_count) ?? 0;
+    filtered.sort((a, b) => countRange === "high" ? k(b) - k(a) : k(a) - k(b));
+  }
   const pages = Math.max(1, Math.ceil(filtered.length / 10));
   const currentPage = Math.min(page, pages);
   const visiblePartners = filtered.slice((currentPage - 1) * 10, currentPage * 10);
-  const openDirectory = (kind: "normal" | "utility") => { setSection(kind); setSearch(""); setStatus("all"); setBody("all"); setWard("all"); setPage(1); };
+  const openDirectory = (kind: "normal" | "utility") => { setSection(kind); setSearch(""); setStatus("all"); setBody("all"); setWard("all"); setCountRange("all"); setPage(1); };
   const partnerActions = (p: SellingPartner) => <div className="flex flex-wrap gap-1">
     <Button variant="outline" size="sm" onClick={() => setDetailPartner(p)}><User />Details</Button>
     {p.seller_type !== "utility" && <>
@@ -393,13 +404,14 @@ const SellingPartnersPage = () => {
           const Icon = kind === "utility" ? Wrench : Store;
           return <Button key={kind} variant="outline" onClick={() => openDirectory(kind)} className="h-auto min-h-[180px] items-start justify-start whitespace-normal p-6 text-left"><div className="w-full space-y-5"><div className="flex items-center justify-between"><Icon className="text-primary" /><ArrowRight className="text-muted-foreground" /></div><div><h2 className="text-lg font-semibold">{kind === "utility" ? "Utility Sellers" : "Normal Sellers"}</h2><p className="mt-1 text-3xl font-bold">{loading ? "…" : list.length}</p></div><div className="flex flex-wrap gap-2"><Badge variant="secondary">{list.filter(p => !p.is_approved).length} pending</Badge><Badge variant="outline">{list.filter(p => p.is_approved).length} approved</Badge></div></div></Button>;
         })}</div> : <>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Search sellers" placeholder="Name, company, phone or email" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
             <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Seller status"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="pending">Pending approval</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="blocked">Blocked</SelectItem></SelectContent></Select>
             <Select value={body} onValueChange={v => { setBody(v); setWard("all"); }}><SelectTrigger aria-label="Local body"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All local bodies</SelectItem>{bodyOptions.map(([id,name]) => id && <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select>
             <Select value={ward} onValueChange={setWard} disabled={body === "all"}><SelectTrigger aria-label="Ward"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All wards</SelectItem>{wardOptions.map(w => <SelectItem key={w} value={String(w)}>Ward {w}</SelectItem>)}</SelectContent></Select>
+            <Select value={countRange} onValueChange={setCountRange}><SelectTrigger aria-label="Count filter"><SelectValue /></SelectTrigger><SelectContent>{(() => { const n = section === "utility" ? "services" : "products"; return <><SelectItem value="all">All {n} counts</SelectItem><SelectItem value="any">With {n} (1+)</SelectItem><SelectItem value="none">No {n} (0)</SelectItem><SelectItem value="1-5">1 – 5 {n}</SelectItem><SelectItem value="6-20">6 – 20 {n}</SelectItem><SelectItem value="20+">More than 20 {n}</SelectItem><SelectItem value="high">Most {n} first</SelectItem><SelectItem value="low">Fewest {n} first</SelectItem></>; })()}</SelectContent></Select>
           </div>
-          <div className="flex justify-between items-center gap-2 text-sm"><span className="text-muted-foreground">{filtered.length} matching partners</span><Button size="sm" variant="ghost" onClick={() => { setSearch(""); setStatus("all"); setBody("all"); setWard("all"); }}>Clear filters</Button></div>
+          <div className="flex justify-between items-center gap-2 text-sm"><span className="text-muted-foreground">{filtered.length} matching partners</span><Button size="sm" variant="ghost" onClick={() => { setSearch(""); setStatus("all"); setBody("all"); setWard("all"); setCountRange("all"); }}>Clear filters</Button></div>
           <PartnerTable items={visiblePartners} loading={loading} />
           <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">Page {currentPage} of {pages}</span><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft /></Button><Button variant="outline" size="icon" aria-label="Next page" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}><ChevronRight /></Button></div></div>
         </>}
