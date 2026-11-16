@@ -26,6 +26,13 @@ Deno.serve(async (req) => {
     const { data: roles } = await admin.from("user_roles").select("roles(name)").eq("user_id", uid);
     allowed = (roles ?? []).some((r: { roles?: { name?: string } | null }) => isAllowedSenderRole(r.roles?.name));
   }
+  if (!allowed) {
+    const { data: lp } = await admin.from("profiles").select("role_id").eq("user_id", uid).maybeSingle();
+    if (lp?.role_id) {
+      const { data: lr } = await admin.from("roles").select("name").eq("id", lp.role_id).maybeSingle();
+      allowed = isAllowedSenderRole(lr?.name);
+    }
+  }
   if (!allowed) return json({ error: "You are not allowed to send verification links" }, 403);
 
   // Basic rate limit per sender.
@@ -45,7 +52,7 @@ Deno.serve(async (req) => {
     .eq("mobile_number", mobile)
     .eq("user_type", "customer")
     .maybeSingle();
-  if (!customer) return json({ error: "No customer account found with this mobile number" }, 404);
+  if (!customer) return json({ status: "not_registered" });
   if (customer.is_verified) return json({ status: "already_verified" });
 
   const token = generateLinkToken();

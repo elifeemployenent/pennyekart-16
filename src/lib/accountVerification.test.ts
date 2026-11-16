@@ -4,6 +4,7 @@ import {
   canSendVerificationLink,
   canSendVerificationLinkForRoles,
   normalizeVerificationMobile,
+  playStoreInviteMessage,
   verificationWhatsAppMessage,
 } from "./accountVerification";
 
@@ -20,7 +21,8 @@ describe("verification link sender eligibility", () => {
   });
 
   it("rejects other roles and missing roles", () => {
-    expect(canSendVerificationLink(false, "pro")).toBe(false);
+    expect(canSendVerificationLink(false, "pro")).toBe(true);
+    expect(canSendVerificationLink(false, "customer")).toBe(false);
     expect(canSendVerificationLink(false, "group leader")).toBe(true);
     expect(canSendVerificationLink(false, null)).toBe(false);
     expect(canSendVerificationLink(false, undefined)).toBe(false);
@@ -38,8 +40,15 @@ describe("verification link sender eligibility", () => {
   });
 
   it("rejects members whose roles are all outside the allowed list", () => {
-    expect(canSendVerificationLinkForRoles(false, ["pro"])).toBe(false);
+    expect(canSendVerificationLinkForRoles(false, ["PRO"])).toBe(true);
+    expect(canSendVerificationLinkForRoles(false, ["customer"])).toBe(false);
     expect(canSendVerificationLinkForRoles(false, [])).toBe(false);
+  });
+});
+
+describe("play store invite", () => {
+  it("includes the Play Store app link", () => {
+    expect(playStoreInviteMessage()).toContain("https://play.google.com/store/apps/details?id=com.pennyekart.app");
   });
 });
 
