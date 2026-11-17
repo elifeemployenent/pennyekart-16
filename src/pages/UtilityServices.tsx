@@ -464,6 +464,17 @@ const UtilityServices = () => {
             </CardContent>
           </Card>
         )}
+        {!historyMode && activeCat && !selectedSupplier && (
+          <Card className="mb-4 border-primary/30 bg-primary/5">
+            <CardContent className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">Offer {activeCat.name.trim()} service on Pennyekart</p>
+                <p className="text-xs text-muted-foreground">Register as a {activeCat.name.trim()} partner</p>
+              </div>
+              <Button size="sm" onClick={() => navigate(`/utility-partner/signup?category=${activeCat.id}`)}>Register</Button>
+            </CardContent>
+          </Card>
+        )}
         {!historyMode && (activeCat || selectedSupplier) && (
           <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
             <button className="hover:text-foreground" onClick={() => { setActiveCat(null); setActiveProvider(null); }}>Categories</button>

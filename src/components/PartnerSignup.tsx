@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Camera, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,12 +56,22 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
   const [utilityCategories, setUtilityCategories] = useState<{ id: string; name: string }[]>([]);
   const [utilityCategoryId, setUtilityCategoryId] = useState("");
   const isUtility = sellerType === "utility";
+  const [searchParams] = useSearchParams();
+  const presetCategory = searchParams.get("category") ?? "";
 
   useEffect(() => {
     if (!isUtility) return;
     supabase.from("utility_service_categories").select("id, name").eq("is_active", true).order("sort_order").order("name")
-      .then(({ data }) => setUtilityCategories((data as { id: string; name: string }[]) ?? []));
-  }, [isUtility]);
+      .then(({ data }) => {
+        const list = (data as { id: string; name: string }[]) ?? [];
+        setUtilityCategories(list);
+        if (presetCategory) {
+          const key = presetCategory.trim().toLowerCase();
+          const match = list.find((c) => c.id === presetCategory || c.name.trim().toLowerCase() === key);
+          if (match) setUtilityCategoryId((prev) => prev || match.id);
+        }
+      });
+  }, [isUtility, presetCategory]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
