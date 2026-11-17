@@ -118,6 +118,7 @@ const UtilityPartnerDashboard = () => {
       date_of_birth: profileForm.date_of_birth || null,
       local_body_id: profileForm.local_body_id || null,
       ward_number: profileForm.ward_number ? Number(profileForm.ward_number) : null,
+      avatar_url: avatarUrl.trim() || null,
     }).eq("user_id", profile.user_id);
     setProfileSaving(false);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -466,7 +467,7 @@ const UtilityPartnerDashboard = () => {
                   <div className="sm:col-span-2 flex items-start gap-4">
                     {avatarUrl ? <img src={avatarUrl} alt="Profile picture or brand logo" className="h-20 w-20 shrink-0 rounded-full border border-border object-cover" /> : <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-muted"><User className="h-8 w-8 text-muted-foreground" /></div>}
                     <div className="min-w-0 flex-1">
-                      <ImageUpload bucket="products" value={avatarUrl} onChange={(url, meta) => saveAvatar(url, !!meta || url === "")} label="Profile Picture / Brand Logo" />
+                      <ImageUpload bucket="products" value={avatarUrl} onChange={(url) => saveAvatar(url, true)} label="Profile Picture / Brand Logo" />
                     </div>
                   </div>
                   <div>
