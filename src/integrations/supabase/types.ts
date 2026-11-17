@@ -1982,6 +1982,7 @@ export type Database = {
           updated_at: string
           user_id: string
           user_type: string
+          utility_category_id: string | null
           verification_code: string | null
           verification_code_expires_at: string | null
           verified_at: string | null
@@ -2026,6 +2027,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           user_type?: string
+          utility_category_id?: string | null
           verification_code?: string | null
           verification_code_expires_at?: string | null
           verified_at?: string | null
@@ -2070,6 +2072,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           user_type?: string
+          utility_category_id?: string | null
           verification_code?: string | null
           verification_code_expires_at?: string | null
           verified_at?: string | null
@@ -2095,6 +2098,13 @@ export type Database = {
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_utility_category_id_fkey"
+            columns: ["utility_category_id"]
+            isOneToOne: false
+            referencedRelation: "utility_service_categories"
             referencedColumns: ["id"]
           },
         ]

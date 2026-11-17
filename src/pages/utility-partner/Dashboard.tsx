@@ -119,6 +119,13 @@ const UtilityPartnerDashboard = () => {
     categories.find((c) => c.id === s.category_id)?.category_type === "product";
 
   const selectedCategory = categories.find((c) => c.id === form.category_id);
+  const myCategoryId = ((profile as any)?.utility_category_id as string | null) ?? "";
+  const myCategory = categories.find((c) => c.id === myCategoryId);
+  const newServiceForm = () => {
+    if (!myCategory) return emptyService;
+    const units = unitsForCategoryType(myCategory.category_type);
+    return { ...emptyService, category_id: myCategory.id, price_unit: units[0].value };
+  };
   const unitOptions = form.category_id ? unitsForCategoryType(selectedCategory?.category_type) : PRICE_UNITS;
 
   const fetchAll = async () => {
@@ -374,6 +381,7 @@ const UtilityPartnerDashboard = () => {
           <div className="flex min-w-0 items-center gap-3">
             <img src={logo} alt="Pennyekart" className="h-8 w-auto shrink-0" />
             <span className="font-semibold text-foreground">Utility Partner</span>
+            {myCategory && <Badge variant="secondary" className="truncate">{myCategory.name.trim()}</Badge>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <NotificationBell />
@@ -499,7 +507,7 @@ const UtilityPartnerDashboard = () => {
 
           <TabsContent value="services" className="mt-4 space-y-3">
             <div className="flex justify-end">
-              <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm(emptyService); setEditId(null); } }}>
+              <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v && !editId) setForm(newServiceForm()); if (!v) { setForm(emptyService); setEditId(null); } }}>
                 <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Add Service</Button></DialogTrigger>
                 <DialogContent className="w-[calc(100%-2rem)] max-h-[85dvh] overflow-y-auto">
                   <DialogHeader><DialogTitle>{editId ? "Edit Service" : "New Service"}</DialogTitle></DialogHeader>

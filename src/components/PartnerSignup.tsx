@@ -53,6 +53,15 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
   const [districts, setDistricts] = useState<District[]>([]);
   const [localBodies, setLocalBodies] = useState<LocalBody[]>([]);
   const [loading, setLoading] = useState(false);
+  const [utilityCategories, setUtilityCategories] = useState<{ id: string; name: string }[]>([]);
+  const [utilityCategoryId, setUtilityCategoryId] = useState("");
+  const isUtility = sellerType === "utility";
+
+  useEffect(() => {
+    if (!isUtility) return;
+    supabase.from("utility_service_categories").select("id, name").eq("is_active", true).order("sort_order").order("name")
+      .then(({ data }) => setUtilityCategories((data as { id: string; name: string }[]) ?? []));
+  }, [isUtility]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -87,6 +96,10 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
       toast({ title: "Enter a valid 10-digit mobile number", variant: "destructive" });
       return;
     }
+    if (isUtility && !utilityCategoryId) {
+      toast({ title: "Select your service category", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     const email = `${mobile}@pennyekart.local`;
@@ -102,6 +115,7 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
           local_body_id: localBodyId || null,
           ward_number: wardNumber ? parseInt(wardNumber) : null,
           ...(userType === "selling_partner" ? { seller_type: sellerType ?? "normal" } : {}),
+          ...(isUtility ? { utility_category_id: utilityCategoryId } : {}),
         },
       },
     });
@@ -263,6 +277,15 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
                 {wardOptions.map(w => <option key={w} value={String(w)}>Ward {w}</option>)}
               </select>
             </div>
+            {isUtility && (
+              <div>
+                <Label htmlFor="utilityCategory">Service Category</Label>
+                <select id="utilityCategory" value={utilityCategoryId} onChange={(e) => setUtilityCategoryId(e.target.value)} className={nativeSelectClass} required>
+                  <option value="">Select service category</option>
+                  {utilityCategories.map((c) => <option key={c.id} value={c.id}>{c.name.trim()}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
