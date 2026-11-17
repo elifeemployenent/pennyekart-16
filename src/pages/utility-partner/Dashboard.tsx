@@ -23,6 +23,7 @@ import UtilityRequestNotificationDialog, { UTILITY_UNFINISHED_STATUSES } from "@
 import { SELLER_REMINDER_INTERVAL } from "@/lib/sellerOrderReminders";
 import OrderItemHighlight from "@/components/selling-partner/OrderItemHighlight";
 import PartnerAvatar from "@/components/partner/PartnerAvatar";
+import ImageUpload from "@/components/admin/ImageUpload";
 import logo from "@/assets/logo.png";
 import { useUtilityReminderPause } from "@/lib/utilityReminderPause";
 import { areDailyRemindersDismissed, dismissDailyReminders } from "@/lib/dailyReminderDismissal";
@@ -54,6 +55,16 @@ const UtilityPartnerDashboard = () => {
   const prevPendingRef = useRef(-1);
   const [profileForm, setProfileForm] = useState({ full_name: "", mobile_number: "", date_of_birth: "", local_body_id: "", ward_number: "" });
   const [profileSaving, setProfileSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>((profile as any)?.avatar_url ?? "");
+  useEffect(() => { setAvatarUrl((profile as any)?.avatar_url ?? ""); }, [(profile as any)?.avatar_url]);
+  const saveAvatar = async (url: string, uploaded = true) => {
+    setAvatarUrl(url);
+    if (!uploaded) return;
+    if (!profile?.user_id) return;
+    const { error } = await supabase.from("profiles").update({ avatar_url: url || null }).eq("user_id", profile.user_id);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else toast({ title: url ? "Profile picture / logo saved" : "Profile picture removed" });
+  };
   const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
   const [editLocalBodies, setEditLocalBodies] = useState<{ id: string; name: string; body_type: string; ward_count: number; district_id: string }[]>([]);
   const [districtId, setDistrictId] = useState("");
@@ -452,6 +463,12 @@ const UtilityPartnerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={saveProfile} className="grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2 flex items-start gap-4">
+                    {avatarUrl ? <img src={avatarUrl} alt="Profile picture or brand logo" className="h-20 w-20 shrink-0 rounded-full border border-border object-cover" /> : <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-muted"><User className="h-8 w-8 text-muted-foreground" /></div>}
+                    <div className="min-w-0 flex-1">
+                      <ImageUpload bucket="products" value={avatarUrl} onChange={(url, meta) => saveAvatar(url, !!meta || url === "")} label="Profile Picture / Brand Logo" />
+                    </div>
+                  </div>
                   <div>
                     <Label htmlFor="up_name">Full Name</Label>
                     <Input id="up_name" value={profileForm.full_name} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} maxLength={100} />
