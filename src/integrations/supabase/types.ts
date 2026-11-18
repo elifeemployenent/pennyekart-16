@@ -2866,11 +2866,13 @@ export type Database = {
       }
       utility_service_requests: {
         Row: {
+          accepted_by: string | null
           address: string | null
           address_id: string | null
           admin_notes: string | null
           availability_unit: string | null
           availability_value: number | null
+          broadcast_category_id: string | null
           cancelled_by: string | null
           contact_name: string
           contact_phone: string
@@ -2883,7 +2885,7 @@ export type Database = {
           preferred_date: string | null
           quantity: number
           quoted_amount: number | null
-          service_id: string
+          service_id: string | null
           status: string
           total_amount: number | null
           unit_price: number | null
@@ -2893,11 +2895,13 @@ export type Database = {
           variant_label: string | null
         }
         Insert: {
+          accepted_by?: string | null
           address?: string | null
           address_id?: string | null
           admin_notes?: string | null
           availability_unit?: string | null
           availability_value?: number | null
+          broadcast_category_id?: string | null
           cancelled_by?: string | null
           contact_name: string
           contact_phone: string
@@ -2910,7 +2914,7 @@ export type Database = {
           preferred_date?: string | null
           quantity?: number
           quoted_amount?: number | null
-          service_id: string
+          service_id?: string | null
           status?: string
           total_amount?: number | null
           unit_price?: number | null
@@ -2920,11 +2924,13 @@ export type Database = {
           variant_label?: string | null
         }
         Update: {
+          accepted_by?: string | null
           address?: string | null
           address_id?: string | null
           admin_notes?: string | null
           availability_unit?: string | null
           availability_value?: number | null
+          broadcast_category_id?: string | null
           cancelled_by?: string | null
           contact_name?: string
           contact_phone?: string
@@ -2937,7 +2943,7 @@ export type Database = {
           preferred_date?: string | null
           quantity?: number
           quoted_amount?: number | null
-          service_id?: string
+          service_id?: string | null
           status?: string
           total_amount?: number | null
           unit_price?: number | null
@@ -2952,6 +2958,13 @@ export type Database = {
             columns: ["address_id"]
             isOneToOne: false
             referencedRelation: "customer_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "utility_service_requests_broadcast_category_id_fkey"
+            columns: ["broadcast_category_id"]
+            isOneToOne: false
+            referencedRelation: "utility_service_categories"
             referencedColumns: ["id"]
           },
           {
@@ -3133,6 +3146,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_broadcast_utility_request: {
+        Args: { _request_id: string; _unit: string; _value: number }
+        Returns: boolean
+      }
       admin_delete_community: {
         Args: { _community_id: string }
         Returns: boolean

@@ -65,6 +65,7 @@ const UtilityServices = () => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<UtilityService | null>(null);
+  const [broadcastCat, setBroadcastCat] = useState<UtilityCategory | null>(null);
   const [form, setForm] = useState({ contact_name: "", contact_phone: "", address: "" });
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -104,7 +105,7 @@ const UtilityServices = () => {
 
     const requests = (data as UtilityRequest[]) ?? [];
     setRequestHistory(requests);
-    const serviceIds = [...new Set(requests.map((request) => request.service_id))];
+    const serviceIds = [...new Set(requests.map((request) => request.service_id).filter(Boolean))] as string[];
     if (serviceIds.length > 0) {
       const { data: servicesData } = await supabase
         .from("utility_services")
@@ -279,7 +280,13 @@ const UtilityServices = () => {
   const needsLocation = booking?.requires_location !== false;
   const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId) ?? null;
 
-  const openBooking = async (s: UtilityService) => {
+  const openBroadcast = (c: UtilityCategory) => {
+    setBroadcastCat(c);
+    void openBooking({ id: "", name: `${c.name.trim()} — ആവശ്യമുണ്ട്`, category_id: c.id, price: 0, price_unit: "quote", requires_location: true } as unknown as UtilityService, true);
+  };
+
+  const openBooking = async (s: UtilityService, broadcast = false) => {
+    if (!broadcast) setBroadcastCat(null);
     if (!user) {
       toast({ title: "Please log in", description: "Log in to request a service." });
       navigate("/customer/login");
@@ -397,7 +404,8 @@ const UtilityServices = () => {
 
     setSubmitting(true);
     const { data: request, error } = await supabase.from("utility_service_requests").insert({
-      service_id: booking.id,
+      service_id: broadcastCat ? null : booking.id,
+      broadcast_category_id: broadcastCat?.id ?? null,
       customer_user_id: user.id,
       contact_name: contactName,
       contact_phone: contactPhone,
@@ -410,21 +418,22 @@ const UtilityServices = () => {
       quantity: qty,
       unit_price: unitPrice || null,
       total_amount: orderTotal || null,
-    }).select("id").single();
+    } as never).select("id").single();
     setSubmitting(false);
     if (error) {
       toast({ title: "Could not send request", description: error.message, variant: "destructive" });
     } else {
-      void supabase.functions.invoke("send-utility-request-push", { body: { request_id: request.id } })
+      if (!broadcastCat) void supabase.functions.invoke("send-utility-request-push", { body: { request_id: request.id } })
         .then(({ error: pushError }) => {
           if (pushError) console.error("Utility request push failed:", pushError.message);
         })
         .catch((pushError) => console.error("Utility request push failed:", pushError));
       toast({
         title: variants.length ? "Order placed!" : "Request sent!",
-        description: "The supplier will contact you shortly.",
+        description: broadcastCat ? "Sent to all available partners. The first to accept will contact you." : "The supplier will contact you shortly.",
       });
       setBooking(null);
+      setBroadcastCat(null);
     }
   };
 
@@ -475,6 +484,11 @@ const UtilityServices = () => {
               <Button size="sm" onClick={() => navigate(`/utility-partner/signup?category=${activeCat.id}`)}>Register</Button>
             </CardContent>
           </Card>
+        )}
+        {!historyMode && activeCat && !selectedSupplier && (
+          <Button size="lg" className="mb-4 h-12 w-full text-base font-semibold" onClick={() => openBroadcast(activeCat)}>
+            Required (ആവശ്യമുണ്ട്)
+          </Button>
         )}
         {!historyMode && (activeCat || selectedSupplier) && (
           <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
@@ -580,7 +594,7 @@ const UtilityServices = () => {
                         </div>
                         <div className="flex flex-wrap items-start justify-between gap-2 border-t pt-3">
                           <div className="min-w-0">
-                            <p className="break-words font-semibold">{historyServiceNames[request.service_id] ?? "Utility service"}</p>
+                            <p className="break-words font-semibold">{(request.service_id && historyServiceNames[request.service_id]) || "Utility service"}</p>
                             {(request.variant_label || request.quantity) && (
                               <p className="mt-1 text-sm text-muted-foreground">
                                 {[request.variant_label, `Qty: ${request.quantity ?? 1}`].filter(Boolean).join(" · ")}

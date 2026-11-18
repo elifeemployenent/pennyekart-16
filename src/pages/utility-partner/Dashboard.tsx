@@ -151,15 +151,13 @@ const UtilityPartnerDashboard = () => {
     setCategories((cats.data as UtilityCategory[]) ?? []);
     const list = (svcs.data as UtilityService[]) ?? [];
     setServices(list);
-    if (list.length) {
-      const { data } = await supabase
-        .from("utility_service_requests").select("*")
-        .in("service_id", list.map((s) => s.id))
-        .order("created_at", { ascending: false });
-      setRequests((data as UtilityRequest[]) ?? []);
-    } else {
-      setRequests([]);
-    }
+    const [own, open] = await Promise.all([
+      list.length
+        ? supabase.from("utility_service_requests").select("*").in("service_id", list.map((s) => s.id)).order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as UtilityRequest[] }),
+      supabase.from("utility_service_requests").select("*").is("service_id", null).eq("status", "pending").order("created_at", { ascending: false }),
+    ]);
+    setRequests([...(((open.data as UtilityRequest[]) ?? [])), ...(((own.data as UtilityRequest[]) ?? []))]);
   };
 
   useEffect(() => { fetchAll(); }, [profile?.user_id]);
@@ -284,6 +282,13 @@ const UtilityPartnerDashboard = () => {
   const [acceptId, setAcceptId] = useState<string | null>(null);
   const acceptWithAvailability = async (unit: AvailabilityUnit, value: number) => {
     if (!acceptId) return;
+    if (requests.find((r) => r.id === acceptId && !r.service_id)) {
+      const { data: won, error: rpcError } = await supabase.rpc("accept_broadcast_utility_request" as never, { _request_id: acceptId, _unit: unit, _value: value } as never);
+      if (rpcError) toast({ title: "Error", description: rpcError.message, variant: "destructive" });
+      else if (!won) toast({ title: "Already taken", description: "Another partner accepted this request first.", variant: "destructive" });
+      else toast({ title: "Request accepted" });
+      setAcceptId(null); fetchAll(); return;
+    }
     const { error } = await supabase.from("utility_service_requests")
       .update({ status: "assigned", availability_unit: unit, availability_value: value } as never).eq("id", acceptId);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -301,7 +306,7 @@ const UtilityPartnerDashboard = () => {
     setEditId(s.id); setOpen(true);
   };
 
-  const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? "—";
+  const serviceName = (id: string) => (id ? services.find((s) => s.id === id)?.name ?? "—" : "Open request (ആവശ്യമുണ്ട്)");
   const pending = requests.filter((r) => r.status === "pending").length;
   const OPEN_STATUSES = ["pending", "assigned", "in_progress", "quoted"];
   const openRequests = requests.filter((r) => OPEN_STATUSES.includes(r.status));
@@ -339,7 +344,7 @@ const UtilityPartnerDashboard = () => {
           </div>
           <Badge variant={isAutoCancelledRequest(r) ? "destructive" : "outline"} className="max-w-[55%] shrink-0 whitespace-normal break-words">{isAutoCancelledRequest(r) ? "Auto-cancelled · Acceptance delayed" : statusLabel(r.status)}</Badge>
         </div>
-        <OrderItemHighlight name={serviceName(r.service_id)} variant={r.variant_label} quantity={r.quantity ?? 1}>
+        <OrderItemHighlight name={r.service_id ? serviceName(r.service_id) : "Open request (ആവശ്യമുണ്ട്) — first to accept gets it"} variant={r.variant_label} quantity={r.quantity ?? 1}>
           {!!r.total_amount && <p className="text-sm font-semibold text-primary">₹{Number(r.total_amount)}</p>}
         </OrderItemHighlight>
         {showUtilityPartnerContact(r) && r.address && <p className="break-words text-sm">{r.address}</p>}
@@ -368,9 +373,9 @@ const UtilityPartnerDashboard = () => {
               <Button size="sm" className="h-11" onClick={() => setAcceptId(r.id)}>
                 <Check className="mr-1.5 h-3.5 w-3.5" /> Accept
               </Button>
-              <Button size="sm" variant="outline" className="h-11 text-destructive border-destructive/40" onClick={() => cancelRequest(r.id)}>
+              {r.service_id && <Button size="sm" variant="outline" className="h-11 text-destructive border-destructive/40" onClick={() => cancelRequest(r.id)}>
                 Cancel
-              </Button>
+              </Button>}
             </>
           )}
           {["assigned", "in_progress"].includes(r.status) && (
@@ -378,10 +383,10 @@ const UtilityPartnerDashboard = () => {
               <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Finish
             </Button>
           )}
-          <Select value={r.status} onValueChange={(v) => setRequestStatus(r.id, v)}>
+          {r.service_id && <Select value={r.status} onValueChange={(v) => setRequestStatus(r.id, v)}>
             <SelectTrigger className="col-span-2 h-11 w-full min-w-0 sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>{REQUEST_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-          </Select>
+          </Select>}
         </div>
       </CardContent>
     </Card>
