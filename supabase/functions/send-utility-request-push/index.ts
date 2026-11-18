@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
     const sb = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
     const { data: request, error: requestError } = await sb.from("utility_service_requests")
-      .select("id, service_id, customer_user_id, status, created_at, utility_push_sent_at")
+      .select("id, service_id, broadcast_category_id, customer_user_id, status, created_at, utility_push_sent_at")
       .eq("id", requestId)
       .maybeSingle();
     if (requestError) throw requestError;
@@ -80,6 +80,43 @@ Deno.serve(async (req) => {
       .is("utility_push_sent_at", null)
       .select("id");
     if (!claimed?.length) return json({ sent: false, reason: "already_sent" });
+
+    if (!request.service_id && request.broadcast_category_id) {
+      const catId = request.broadcast_category_id;
+      const { data: svcRows } = await sb.from("utility_services").select("provider_user_id").eq("category_id", catId);
+      const { data: catProfiles } = await sb.from("profiles").select("user_id").eq("seller_type", "utility").eq("utility_category_id", catId);
+      const ids = [...new Set([...(svcRows ?? []).map((r) => r.provider_user_id), ...(catProfiles ?? []).map((r) => r.user_id)].filter(Boolean))];
+      if (!ids.length) return json({ sent: false, reason: "no_partners" });
+      const { data: partners } = await sb.from("profiles").select("user_id, fcm_token, is_available")
+        .in("user_id", ids).eq("seller_type", "utility").not("fcm_token", "is", null);
+      const targets = (partners ?? []).filter((p) => p.is_available !== false && p.fcm_token);
+      if (!targets.length) return json({ sent: false, reason: "no_token" });
+      const { data: cat } = await sb.from("utility_service_categories").select("name").eq("id", catId).maybeSingle();
+      const projectId = Deno.env.get("FIREBASE_PROJECT_ID");
+      const clientEmail = Deno.env.get("FIREBASE_CLIENT_EMAIL");
+      const privateKey = Deno.env.get("FIREBASE_PRIVATE_KEY");
+      if (!projectId || !clientEmail || !privateKey) return json({ error: "Firebase secrets are not configured" }, 500);
+      const accessToken = await getAccessToken(clientEmail, privateKey);
+      const url = `/utility-partner/dashboard?tab=requests&request=${requestId}`;
+      let sent = 0;
+      await Promise.all(targets.map(async (t) => {
+        const r = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ message: {
+            token: t.fcm_token,
+            notification: { title: "New Required Request (ആവശ്യമുണ്ട്)", body: `A customer needs ${cat?.name ?? "a service"}. First to accept gets the job.` },
+            data: { type: "utility_request", request_id: requestId, url },
+            android: { priority: "high", notification: { channel_id: "default_notification_channel" } },
+          } }),
+        });
+        if (r.ok) { sent++; await r.body?.cancel(); return; }
+        const eb = await r.json().catch(() => ({}));
+        const code = eb?.error?.details?.find((d: { errorCode?: string }) => d.errorCode)?.errorCode ?? eb?.error?.status;
+        if (r.status === 404 || code === "UNREGISTERED") await sb.from("profiles").update({ fcm_token: null }).eq("user_id", t.user_id);
+      }));
+      return json({ sent: sent > 0, count: sent });
+    }
 
     const { data: service, error: serviceError } = await sb.from("utility_services")
       .select("provider_user_id, name")

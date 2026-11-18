@@ -423,7 +423,7 @@ const UtilityServices = () => {
     if (error) {
       toast({ title: "Could not send request", description: error.message, variant: "destructive" });
     } else {
-      if (!broadcastCat) void supabase.functions.invoke("send-utility-request-push", { body: { request_id: request.id } })
+      void supabase.functions.invoke("send-utility-request-push", { body: { request_id: request.id } })
         .then(({ error: pushError }) => {
           if (pushError) console.error("Utility request push failed:", pushError.message);
         })
