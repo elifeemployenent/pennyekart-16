@@ -3300,6 +3300,7 @@ export type Database = {
           business_address: string
           company_name: string
           display_name: string
+          is_available: boolean
           local_body_name: string
           mobile_number: string
           provider_user_id: string

@@ -317,9 +317,12 @@ const UtilityPartnerDashboard = () => {
   const toggleAvailability = async (v: boolean) => {
     if (!profile?.user_id) return;
     setAvailable(v);
-    const { error } = await supabase.from("profiles").update({ is_available: v }).eq("user_id", profile.user_id);
-    if (error) { setAvailable(!v); toast({ title: "Error", description: error.message, variant: "destructive" }); }
-    else toast({ title: v ? "You're now Available" : "You're now Busy" });
+    const { data: saved, error } = await supabase.from("profiles").update({ is_available: v }).eq("user_id", profile.user_id).select("is_available");
+    if (!error && (!saved || saved.length === 0)) { setAvailable(!v); toast({ title: "Couldn't update status", description: "Please sign in again and retry.", variant: "destructive" }); return; }
+    if (error) { setAvailable(!v); toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Keep the cached profile in step so the status doesn't flip back on re-render.
+    if (profile) (profile as any).is_available = v;
+    toast({ title: v ? "You're now Available" : "You're now Busy" });
   };
 
   const renderRequest = (r: UtilityRequest) => (

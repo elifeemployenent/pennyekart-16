@@ -45,6 +45,7 @@ interface ProviderInfo {
   local_body_name: string | null;
   ward_number: number | null;
   avatar_url?: string | null;
+  is_available?: boolean | null;
 }
 
 const DIRECT_KEY = "__direct__";
@@ -705,7 +706,10 @@ const UtilityServices = () => {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-semibold text-foreground">{g.name}</h2>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h2 className="truncate font-semibold text-foreground">{g.name}</h2>
+                      {g.info?.is_available === false && <Badge variant="destructive" className="shrink-0">Busy</Badge>}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {g.items.length} service{g.items.length === 1 ? "" : "s"} available
                     </p>
@@ -744,7 +748,11 @@ const UtilityServices = () => {
                       <Building2 className="h-4 w-4 text-primary" />
                     )}
                     {selectedSupplier.name}
+                    {selectedSupplier.info.is_available === false && <Badge variant="destructive">Busy</Badge>}
                   </div>
+                  {selectedSupplier.info.is_available === false && (
+                    <p className="w-full text-sm text-destructive">This partner is busy right now — you can still book, but the reply may be delayed.</p>
+                  )}
                   {selectedSupplier.info.local_body_name && (
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <MapPin className="h-3 w-3" />{selectedSupplier.info.local_body_name}
